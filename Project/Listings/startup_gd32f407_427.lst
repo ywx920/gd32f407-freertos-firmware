@@ -336,9 +336,9 @@ ARM Macro Assembler    Page 6
    [WEAK]
   179 00000000                 IMPORT           SystemInit
   180 00000000                 IMPORT           __main
-  181 00000000 4809            LDR              R0, =SystemInit
+  181 00000000 4806            LDR              R0, =SystemInit
   182 00000002 4780            BLX              R0
-  183 00000004 4809            LDR              R0, =__main
+  183 00000004 4806            LDR              R0, =__main
   184 00000006 4700            BX               R0
   185 00000008                 ENDP
   186 00000008         
@@ -685,42 +685,24 @@ ARM Macro Assembler    Page 11
   404 0000001C         ; user Initial Stack & Heap
   405 0000001C         
   406 0000001C                 IF               :DEF:__MICROLIB
-  413 0000001C         
-  414 0000001C                 IMPORT           __use_two_region_memory
-  415 0000001C                 EXPORT           __user_initial_stackheap
-  416 0000001C         
-  417 0000001C         __user_initial_stackheap
-                               PROC
-  418 0000001C 4804            LDR              R0, =  Heap_Mem
-  419 0000001E 4905            LDR              R1, =(Stack_Mem + Stack_Size)
-  420 00000020 4A05            LDR              R2, = (Heap_Mem +  Heap_Size)
-  421 00000022 4B06            LDR              R3, = Stack_Mem
-  422 00000024 4770            BX               LR
-  423 00000026                 ENDP
-  424 00000026         
-  425 00000026 00 00           ALIGN
-  426 00000028         
-  427 00000028                 ENDIF
-  428 00000028         
-  429 00000028                 END
+  407 0000001C         
+  408 0000001C                 EXPORT           __initial_sp
+  409 0000001C                 EXPORT           __heap_base
+  410 0000001C                 EXPORT           __heap_limit
+  411 0000001C         
+  412 0000001C                 ELSE
+  427                          ENDIF
+  428 0000001C         
+  429 0000001C                 END
               00000000 
-              00000000 
-              00000000 
-              00004000 
-              00000400 
               00000000 
 Command Line: --debug --xref --diag_suppress=9931 --cpu=Cortex-M4.fp.sp --apcs=
 interwork --depend=.\objects\startup_gd32f407_427.d -o.\objects\startup_gd32f40
 7_427.o -ID:\Keil_v5\ARM\PACK\GigaDevice\GD32F4xx_DFP\2.0.0\Device\F4XX\Include
- -ID:\Keil_v5\ARM\CMSIS\Include --predefine="__UVISION_VERSION SETA 533" --pred
-
-
-
-ARM Macro Assembler    Page 12 
-
-
-efine="GD32F407 SETA 1" --list=.\listings\startup_gd32f407_427.lst ..\GDlib\Fir
-mware\CMSIS\GD\GD32F4xx\Source\ARM\startup_gd32f407_427.s
+ -ID:\Keil_v5\ARM\CMSIS\Include --predefine="__MICROLIB SETA 1" --predefine="__
+UVISION_VERSION SETA 533" --predefine="GD32F407 SETA 1" --list=.\listings\start
+up_gd32f407_427.lst ..\GDlib\Firmware\CMSIS\GD\GD32F4xx\Source\ARM\startup_gd32
+f407_427.s
 
 
 
@@ -743,11 +725,8 @@ Symbol: Stack_Mem
       At line 45 in file ..\GDlib\Firmware\CMSIS\GD\GD32F4xx\Source\ARM\startup
 _gd32f407_427.s
    Uses
-      At line 419 in file ..\GDlib\Firmware\CMSIS\GD\GD32F4xx\Source\ARM\startu
-p_gd32f407_427.s
-      At line 421 in file ..\GDlib\Firmware\CMSIS\GD\GD32F4xx\Source\ARM\startu
-p_gd32f407_427.s
-
+      None
+Comment: Stack_Mem unused
 __initial_sp 00004000
 
 Symbol: __initial_sp
@@ -757,7 +736,9 @@ _gd32f407_427.s
    Uses
       At line 69 in file ..\GDlib\Firmware\CMSIS\GD\GD32F4xx\Source\ARM\startup
 _gd32f407_427.s
-Comment: __initial_sp used once
+      At line 408 in file ..\GDlib\Firmware\CMSIS\GD\GD32F4xx\Source\ARM\startu
+p_gd32f407_427.s
+
 3 symbols
 
 
@@ -781,11 +762,8 @@ Symbol: Heap_Mem
       At line 57 in file ..\GDlib\Firmware\CMSIS\GD\GD32F4xx\Source\ARM\startup
 _gd32f407_427.s
    Uses
-      At line 418 in file ..\GDlib\Firmware\CMSIS\GD\GD32F4xx\Source\ARM\startu
-p_gd32f407_427.s
-      At line 420 in file ..\GDlib\Firmware\CMSIS\GD\GD32F4xx\Source\ARM\startu
-p_gd32f407_427.s
-
+      None
+Comment: Heap_Mem unused
 __heap_base 00000000
 
 Symbol: __heap_base
@@ -793,8 +771,9 @@ Symbol: __heap_base
       At line 56 in file ..\GDlib\Firmware\CMSIS\GD\GD32F4xx\Source\ARM\startup
 _gd32f407_427.s
    Uses
-      None
-Comment: __heap_base unused
+      At line 409 in file ..\GDlib\Firmware\CMSIS\GD\GD32F4xx\Source\ARM\startu
+p_gd32f407_427.s
+Comment: __heap_base used once
 __heap_limit 00000400
 
 Symbol: __heap_limit
@@ -802,8 +781,9 @@ Symbol: __heap_limit
       At line 58 in file ..\GDlib\Firmware\CMSIS\GD\GD32F4xx\Source\ARM\startup
 _gd32f407_427.s
    Uses
-      None
-Comment: __heap_limit unused
+      At line 410 in file ..\GDlib\Firmware\CMSIS\GD\GD32F4xx\Source\ARM\startu
+p_gd32f407_427.s
+Comment: __heap_limit used once
 4 symbols
 
 
@@ -2069,17 +2049,7 @@ _gd32f407_427.s
       At line 234 in file ..\GDlib\Firmware\CMSIS\GD\GD32F4xx\Source\ARM\startu
 p_gd32f407_427.s
 
-__user_initial_stackheap 0000001C
-
-Symbol: __user_initial_stackheap
-   Definitions
-      At line 417 in file ..\GDlib\Firmware\CMSIS\GD\GD32F4xx\Source\ARM\startu
-p_gd32f407_427.s
-   Uses
-      At line 415 in file ..\GDlib\Firmware\CMSIS\GD\GD32F4xx\Source\ARM\startu
-p_gd32f407_427.s
-Comment: __user_initial_stackheap used once
-94 symbols
+93 symbols
 
 
 
@@ -2095,9 +2065,7 @@ _gd32f407_427.s
    Uses
       At line 57 in file ..\GDlib\Firmware\CMSIS\GD\GD32F4xx\Source\ARM\startup
 _gd32f407_427.s
-      At line 420 in file ..\GDlib\Firmware\CMSIS\GD\GD32F4xx\Source\ARM\startu
-p_gd32f407_427.s
-
+Comment: Heap_Size used once
 Stack_Size 00004000
 
 Symbol: Stack_Size
@@ -2107,9 +2075,7 @@ _gd32f407_427.s
    Uses
       At line 45 in file ..\GDlib\Firmware\CMSIS\GD\GD32F4xx\Source\ARM\startup
 _gd32f407_427.s
-      At line 419 in file ..\GDlib\Firmware\CMSIS\GD\GD32F4xx\Source\ARM\startu
-p_gd32f407_427.s
-
+Comment: Stack_Size used once
 __Vectors_Size 00000188
 
 Symbol: __Vectors_Size
@@ -2147,14 +2113,5 @@ p_gd32f407_427.s
       At line 183 in file ..\GDlib\Firmware\CMSIS\GD\GD32F4xx\Source\ARM\startu
 p_gd32f407_427.s
 Comment: __main used once
-__use_two_region_memory 00000000
-
-Symbol: __use_two_region_memory
-   Definitions
-      At line 414 in file ..\GDlib\Firmware\CMSIS\GD\GD32F4xx\Source\ARM\startu
-p_gd32f407_427.s
-   Uses
-      None
-Comment: __use_two_region_memory unused
-3 symbols
-447 symbols in table
+2 symbols
+444 symbols in table

@@ -68,6 +68,7 @@
 .\objects\shell.o: ..\Bsp\6.ADC/bsp_adc.h
 .\objects\shell.o: ..\Bsp\sys_config.h
 .\objects\shell.o: ..\Bsp\7.IIC/bsp_i2c.h
+.\objects\shell.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\stdbool.h
 .\objects\shell.o: ..\Bsp\7.IIC/bsp_iicBus.h
 .\objects\shell.o: ..\Bsp\8.GPIO/bsp_gpio.h
 .\objects\shell.o: ..\Bsp\8.GPIO/bsp_gx18b20.h

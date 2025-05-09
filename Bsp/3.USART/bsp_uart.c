@@ -4,6 +4,12 @@
 extern uint8_t recv_buf_shell;
 extern Shell shell;
 
+volatile uint8_t usart0_tx_buffer[128]; // 发送缓冲区
+volatile uint16_t usart0_tx_head = 0, usart0_tx_tail = 0;
+
+uint32_t int_flag;
+uint16_t next_head;
+
 #if 1 //-----------------------------------------------------------------
 // cortex-m 内核在 MDK 中对 printf 函数进行了优化导致处理时需要配置
 // 方法两种：1.用如下方法进行处理；2.用MDK自带的微库处理
@@ -216,6 +222,7 @@ void usart_recv_irq(uint32_t usart_x)
             usart_interrupt_flag_clear(usart_x, USART_INT_FLAG_RBNE);
             // 使能串口中断接收
             recv_buf_shell = usart_data_receive(usart_x);
+            
             // 调用shell处理数据的接口
             // printf("received data is %x\r\n",recv_buf_shell);
             shellHandler(&shell, recv_buf_shell);
@@ -252,4 +259,21 @@ void usart_recv_irq(uint32_t usart_x)
             }
         }
     }
+}
+
+
+void usart0_send_byte(uint8_t data)
+{
+    int_flag = __get_PRIMASK(); // 保存中断状态
+    __disable_irq();
+
+    next_head = (usart0_tx_head + 1) % sizeof(usart0_tx_buffer);
+    if (next_head != usart0_tx_tail)
+    {
+        usart0_tx_buffer[usart0_tx_head] = data;
+        usart0_tx_head = next_head;
+        usart_interrupt_enable(USART0, USART_INT_TBE); // 触发发送中断
+    }
+
+    __set_PRIMASK(int_flag); // 恢复中断状态
 }

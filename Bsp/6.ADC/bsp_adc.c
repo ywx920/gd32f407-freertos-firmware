@@ -10,7 +10,7 @@ void adc_gpio_init(void)
 	/* 使能 ADC 时钟 */
 	rcu_periph_clock_enable(RCU_ADC2);
 	// /* 使能 GPIO 时钟 */
-	// rcu_periph_clock_enable(RCU_GPIOF);
+	rcu_periph_clock_enable(RCU_GPIOF);
 	/* enable timer1 clock */
 	rcu_periph_clock_enable(RCU_TIMER1);
 	rcu_timer_clock_prescaler_config(RCU_TIMER_PSC_MUL4);

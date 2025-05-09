@@ -58,5 +58,6 @@
 .\objects\ipmb.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
 .\objects\ipmb.o: ..\Bsp\14.IPMB\ipmb.h
 .\objects\ipmb.o: ..\Bsp\7.IIC\bsp_i2c.h
+.\objects\ipmb.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\stdbool.h
 .\objects\ipmb.o: ..\Bsp\3.USART\bsp_uart.h
 .\objects\ipmb.o: ..\Bsp\8.GPIO\bsp_gpio.h

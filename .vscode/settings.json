@@ -34,6 +34,14 @@
         "simulate_iic.h": "c",
         "freertos.h": "c",
         "gd32f4xx_gpio.h": "c",
-        "task.h": "c"
-    }
+        "task.h": "c",
+        "gd32f4xx_libopt.h": "c",
+        "bsp_nct210.h": "c",
+        "gd32f4xx_it.h": "c",
+        "system_gd32f4xx.h": "c",
+        "core_cm4.h": "c",
+        "stdbool.h": "c"
+    },
+    "cmake.sourceDirectory": "E:/1-工作文件/1-项目文件/7-ZX-2505-1-TB-2504-02/20241022/20241022/stm32f4-rtos-main/Net/lwip-2.2.0/contrib/ports/unix/example_app",
+    "git.useEditorAsCommitInput": false
 }

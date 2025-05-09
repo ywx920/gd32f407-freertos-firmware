@@ -67,6 +67,7 @@
 .\objects\bsp_adc.o: ..\Bsp\5.ENET/bsp_phy_YT8512H.h
 .\objects\bsp_adc.o: ..\Bsp\6.ADC/bsp_adc.h
 .\objects\bsp_adc.o: ..\Bsp\7.IIC/bsp_i2c.h
+.\objects\bsp_adc.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\stdbool.h
 .\objects\bsp_adc.o: ..\Bsp\7.IIC/bsp_iicBus.h
 .\objects\bsp_adc.o: ..\Bsp\8.GPIO/bsp_gpio.h
 .\objects\bsp_adc.o: ..\Bsp\8.GPIO/bsp_gx18b20.h

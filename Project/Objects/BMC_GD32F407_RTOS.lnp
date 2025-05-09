@@ -12,7 +12,6 @@
 ".\objects\bsp_control_xc6s.o"
 ".\objects\mystring.o"
 ".\objects\bsp_phy_yt8512h.o"
-".\objects\ipmb.o"
 ".\objects\bsp_i2c.o"
 ".\objects\gd32f4xx_adc.o"
 ".\objects\gd32f4xx_can.o"
@@ -109,7 +108,7 @@
 ".\objects\sys_arch.o"
 ".\objects\ethernetif.o"
 ".\objects\lwip_client.o"
---strict --scatter ".\Objects\BMC_GD32F407_RTOS.sct"
+--library_type=microlib --strict --scatter ".\Objects\BMC_GD32F407_RTOS.sct"
 --keep shellCommand* --summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
 --info sizes --info totals --info unused --info veneers
 --list ".\Listings\BMC_GD32F407_RTOS.map" -o .\Objects\BMC_GD32F407_RTOS.axf

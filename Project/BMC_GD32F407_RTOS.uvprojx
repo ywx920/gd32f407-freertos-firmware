@@ -189,7 +189,7 @@
             <hadIRAM2>1</hadIRAM2>
             <hadIROM2>0</hadIROM2>
             <StupSel>8</StupSel>
-            <useUlib>0</useUlib>
+            <useUlib>1</useUlib>
             <EndSel>0</EndSel>
             <uLtcg>0</uLtcg>
             <nSecure>0</nSecure>
@@ -447,11 +447,6 @@
               <FileName>bsp_phy_YT8512H.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Bsp\5.ENET\bsp_phy_YT8512H.c</FilePath>
-            </File>
-            <File>
-              <FileName>ipmb.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Bsp\14.IPMB\ipmb.c</FilePath>
             </File>
             <File>
               <FileName>bsp_i2c.c</FileName>

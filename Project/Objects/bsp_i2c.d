@@ -58,3 +58,4 @@
 .\objects\bsp_i2c.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
 .\objects\bsp_i2c.o: ..\Bsp\14.IPMB\ipmb.h
 .\objects\bsp_i2c.o: ..\User\main.h
+.\objects\bsp_i2c.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\stdbool.h

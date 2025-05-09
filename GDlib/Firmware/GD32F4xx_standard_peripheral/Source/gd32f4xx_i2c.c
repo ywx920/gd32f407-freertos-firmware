@@ -225,6 +225,7 @@ void i2c_ack_config(uint32_t i2c_periph, uint32_t ack)
     \retval     none
     配置指定的I2C外设在接收数据时ACK应答的位置，用户可以通过传入不同的参数来选择ACK在何时发送
     即在当前字节接收完成后发送ACK，还是在下一个字节接收完成后发送ACK。
+    选择ACK的位置
 */
 void i2c_ackpos_config(uint32_t i2c_periph, uint32_t pos)
 {
@@ -717,15 +718,15 @@ void i2c_sam_timeout_disable(uint32_t i2c_periph)
       \arg        I2C_FLAG_RFR: rxframe rise flag
     \param[out] none
     \retval     FlagStatus: SET or RESET
-    检查指定I2C外设的某个标志位是否被设置
+    检查指定I2C外设的某个标志位是否被设置，被设置了返回1，未设置返回0.
     可用于监控通信状态，例如是否成功发送起始条件、是否接收到匹配的地址、是否完成字节传输等
 */
 FlagStatus i2c_flag_get(uint32_t i2c_periph, i2c_flag_enum flag)
 {
     if(RESET != (I2C_REG_VAL(i2c_periph, flag) & BIT(I2C_BIT_POS(flag)))) {
-        return SET;
+        return SET;//1
     } else {
-        return RESET;
+        return RESET;//0
     }
 }
 

@@ -225,3 +225,25 @@ void ENET_IRQHandler(void)
     }
 }
 
+
+/*!
+    \brief      this function handles I2C0 event interrupt request exception
+    \param[in]  none
+    \param[out] none
+    \retval     none
+*/
+// void I2C0_EV_IRQHandler(void)
+// {
+//     i2c0_event_irq_handler();
+// }
+
+// /*!
+//     \brief      this function handles I2C0 error interrupt request exception
+//     \param[in]  none
+//     \param[out] none
+//     \retval     none
+// */
+// void I2C0_ER_IRQHandler(void)
+// {
+//     i2c0_error_irq_handler();
+// }
