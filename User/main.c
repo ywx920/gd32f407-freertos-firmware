@@ -220,13 +220,12 @@ int main(void)
 
   printf(" i2c0 test read data \r\n");
 //
-i2c0_master(I2C0, slave_address, reg_address, rx1,sizeof(rx_buffer));
 
-  printf("the rx data :0x%02X \r\n", rx1);
-i2c0_master(I2C0, slave_address, reg_address, rx2,sizeof(rx_buffer));
-  printf("the rx data :0x%02X \r\n", rx2);
+uint8_t iic0Send_Data[40]; 
+uint8_t * iic0Receive_Data;
+ 
+iic_Init(open_iic0, iic0Send_Data, &iic0Receive_Data, 0xA0); 
 
-  // mpu_read_len(slave_address, reg_address, rx_buffer,sizeof(rx_buffer));
   i2c0_master(I2C0, slave_address, reg_address, rx_buffer,sizeof(rx_buffer)); // ∂¡»°≥§∂» sizeof(rx_buffer)
 
   for (int i = 0; i < sizeof(rx_buffer); i++)

@@ -5,39 +5,36 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define IIC_CLOCK_SPEED(x) (x * 1000)  
-#define IIC_DEFAULT_ADDR   (0x32 << 1)
-#define IIC_STOP_MASK      (0x0200)
-#define IIC_ERR_OFFSET     (0x10)
-#define IIC_CTL0_STOP      (0x0B)
-
+#define IIC_CLOCK_SPEED(x) (x * 1000)
+#define IIC_DEFAULT_ADDR (0x32 << 1)
+#define IIC_STOP_MASK (0x0200)
+#define IIC_ERR_OFFSET (0x10)
+#define IIC_CTL0_STOP (0x0B)
 
 /* STM32 I2C 快速模式 */
-#define I2C_Speed              100000  //*
+#define I2C_Speed 100000 //*
 
 /* 这个地址只要与STM32外挂的I2C器件地址不一样即可 */
-#define I2Cx_OWN_ADDRESS7      0X82  
+#define I2Cx_OWN_ADDRESS7 0X82
 
 /*等待超时时间*/
-#define I2CT_FLAG_TIMEOUT         ((uint32_t)0x1000)
-#define I2CT_LONG_TIMEOUT         ((uint32_t)(10 * I2CT_FLAG_TIMEOUT))
-static __IO uint32_t  I2CTimeout = I2CT_LONG_TIMEOUT; 
+#define I2CT_FLAG_TIMEOUT ((uint32_t)0x1000)
+#define I2CT_LONG_TIMEOUT ((uint32_t)(10 * I2CT_FLAG_TIMEOUT))
+static __IO uint32_t I2CTimeout = I2CT_LONG_TIMEOUT;
 
 /*信息输出*/
-#define I2C_DEBUG_ON         0
+#define I2C_DEBUG_ON 0
 
-#define I2C_INFO(fmt,arg...)           printf("<<-I2C-INFO->> "fmt"\n",##arg)
-#define I2C_ERROR(fmt,arg...)          printf("<<-I2C-ERROR->> "fmt"\n",##arg)
-#define I2C_DEBUG(fmt,arg...)          do{\
-                                          if(I2C_DEBUG_ON)\
-                                          printf("<<-I2C-DEBUG->> [%d]"fmt"\n",__LINE__, ##arg);\
-                                          }while(0)
+#define I2C_INFO(fmt, arg...) printf("<<-I2C-INFO->> " fmt "\n", ##arg)
+#define I2C_ERROR(fmt, arg...) printf("<<-I2C-ERROR->> " fmt "\n", ##arg)
+#define I2C_DEBUG(fmt, arg...)                                        \
+    do                                                                \
+    {                                                                 \
+        if (I2C_DEBUG_ON)                                             \
+            printf("<<-I2C-DEBUG->> [%d]" fmt "\n", __LINE__, ##arg); \
+    } while (0)
 
 #define I2C_SLAVE_ADDRESS 0xA0
-
-
-
-
 
 uint32_t I2C_SLAVE_ByteWrite(uint32_t i2cx, uint8_t device_addr, const uint8_t *p_buffer, uint16_t len);
 
@@ -46,38 +43,40 @@ static uint32_t I2C_TIMEOUT_UserCallback(uint8_t errorCode);
 
 #ifndef UNUSED
 #define UNUSED(x) (void)(x)
-#endif		   
+#endif
 #ifndef FALSE
-#define FALSE 		0
-#endif           
+#define FALSE 0
+#endif
 #ifndef TRUE
-#define TRUE		1
+#define TRUE 1
 #endif
 
 #ifndef false
-#define false 		0
+#define false 0
 #endif
 #ifndef true
-#define true		1
+#define true 1
 #endif
 
-typedef enum _iic_workmode{
-    iic_SendMode = 0,  //发送模式
-    iic_RecvMode       //接收模式
-}iic_workmode;
+typedef enum _iic_workmode
+{
+    iic_SendMode = 0, // 发送模式
+    iic_RecvMode      // 接收模式
+} iic_workmode;
 
-typedef enum _iic_state_flag{
+typedef enum _iic_state_flag
+{
     IIC_FLAG_OK = 0,
-    IIC_FLAG_SBSEND_ERR   = 0x10,
-    IIC_FLAG_ADDSEND_ERR  = 0x11,
-    IIC_FLAG_BTC_ERR      = 0x12,
-    IIC_FLAG_RBNE_ERR     = 0x18,
-    IIC_FLAG_TBE_ERR      = 0x19,
-    IIC_FLAG_BUSY_ERR     = 0x21,
+    IIC_FLAG_SBSEND_ERR = 0x10,
+    IIC_FLAG_ADDSEND_ERR = 0x11,
+    IIC_FLAG_BTC_ERR = 0x12,
+    IIC_FLAG_RBNE_ERR = 0x18,
+    IIC_FLAG_TBE_ERR = 0x19,
+    IIC_FLAG_BUSY_ERR = 0x21,
     IIC_FLAG_CTL0STOP_ERR = 0x22,
-    IIC_FLAG_TIMEOUT_ERR  = 0x30,
-    IIC_FLAG_WITHOUT_ERR  = 0x31
-}iic_state;
+    IIC_FLAG_TIMEOUT_ERR = 0x30,
+    IIC_FLAG_WITHOUT_ERR = 0x31
+} iic_state;
 
 void masterSend(void);
 void masterRec(void);
@@ -95,19 +94,35 @@ uint8_t iic_read_byte(char *caller, uint32_t i2c_periph, uint8_t ack);
 void iic_event_irq_handle(uint32_t i2c_periph);
 void iic_error_irq_handle(uint32_t i2c_periph);
 
-void I2C_Send_Data(unsigned char slaveadr , unsigned char data);
+void I2C_Send_Data(unsigned char slaveadr, unsigned char data);
 
 uint32_t i2c0_bytes_read(uint32_t i2cx, uint8_t device_addr, uint8_t read_addr, uint8_t *p_buffer, uint16_t len);
 uint32_t i2c0_bytes_write(uint32_t i2cx, uint8_t device_addr, const uint8_t *p_buffer, uint16_t len);
 uint32_t i2c0_master(uint32_t i2cx, uint8_t device_addr, uint8_t read_addr, uint8_t *p_buffer, uint16_t len); //, uint16_t len
 
-#define I2C0_SLAVE_ADDRESS7    0x82
-#define I2C1_SLAVE_ADDRESS7    0x72
+#define I2C0_SLAVE_ADDRESS7 0x82
+#define I2C1_SLAVE_ADDRESS7 0x72
+
+typedef enum
+{
+    open_iic0 = 0x01,
+    open_iic1 = 0x02
+} iic_select;
+
+void iic_Init(iic_select select, ...);
+
+/* iic0的中断回调函数 */
+void I2C0_EventIRQ_Handler(void);
+/* iic1的中断回调函数 */
+// void I2C1_EventIRQ_Handler(void);
+
+void I2C0_ErrorIRQ_Handler(void);
+// void I2C1_ErrorIRQ_Handler(void);
 
 extern volatile ErrStatus status;
 // extern volatile uint8_t   *i2c_txbuffer;
-extern volatile uint8_t   *i2c_rxbuffer;
-extern volatile uint16_t  i2c_nbytes;
+extern volatile uint8_t *i2c_rxbuffer;
+extern volatile uint16_t i2c_nbytes;
 
 /* function declarations */
 /* handle I2C0 event interrupt request */

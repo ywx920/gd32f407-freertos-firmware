@@ -58,6 +58,15 @@ void iic_init(uint32_t i2c_periph)
         i2c_clock_config(I2C0, I2C0_SPEED, I2C_DTCY_2);
         /* configure I2C address */
         i2c_mode_addr_config(I2C0, I2C_I2CMODE_ENABLE, I2C_ADDFORMAT_7BITS, I2C0_SLAVE_ADDRESS7);
+
+        /* 中断配置 */
+        nvic_irq_enable(I2C0_EV_IRQn, 3, 0);
+        nvic_irq_enable(I2C0_ER_IRQn, 4, 0);
+        /* enable the I2C0 interrupt */
+        i2c_interrupt_enable(I2C0, I2C_INT_ERR);
+        i2c_interrupt_enable(I2C0, I2C_INT_BUF);
+        i2c_interrupt_enable(I2C0, I2C_INT_EV);
+
         /* enable I2C0 */
         i2c_enable(I2C0);
         /* enable acknowledge */
@@ -205,7 +214,226 @@ void iic_init(uint32_t i2c_periph)
 
 // }
 
-uint32_t i2c0_master(uint32_t i2cx, uint8_t device_addr, uint8_t read_addr, uint8_t *p_buffer, uint16_t len) //, uint16_t len
+/* 接收中断测试 */
+uint8_t *i2c0_send;
+uint8_t i2c0_receiver[20];
+// uint8_t *i2c1_send;
+// uint8_t i2c1_receiver[20];
+
+/**
+ * @fn         :
+ * @brief      : iic0注册主设备读取时被读取的数据
+ * @return      {*}
+ * @attention  :
+ * @author     :
+ * @param {uint8_t} *array
+ */
+void i2c0SlaveRegister(uint8_t *array)
+{
+    i2c0_send = array;
+}
+
+/**
+ * @fn         :
+ * @brief      : iic1注册主设备读取时被读取的数据
+ * @return      {*}
+ * @attention  :
+ * @author     :
+ * @param {uint8_t} *array
+ */
+// void i2c1SlaveRegister(uint8_t *array)
+// {
+//     i2c1_send = array;
+// }
+
+
+/**
+ * @fn         : 
+ * @brief      : 单次接收有长度限制 20byte <不限制长度的接收是不可取的>，发送没有
+ * @return      {*}
+ * @attention  : 
+ * @author     : 
+ * @param {uint8_t} *i2c_send
+ * @param {uint8_t} *i2c_receive
+ */
+void i2c0_rw_Data_slave(uint8_t *const i2c_send, uint8_t *const i2c_receive)
+{
+    static uint8_t ADDSEND_FLAG = 0, wRFlag = 2;                // wRFalg ==0 是发送模式，==1 是接收模式
+    uint8_t *const rxbuffer = i2c_receive, *const txbuffer = i2c_send; //分别保存接收、发送的数据
+    static uint8_t index_rx = 0, index_tx = 0;
+ 
+    if (i2c_interrupt_flag_get(I2C0, I2C_INT_FLAG_ADDSEND)){ //检查addsend标志位
+        ADDSEND_FLAG++;
+        i2c_interrupt_flag_clear(I2C0, I2C_INT_FLAG_ADDSEND);//清理 ADDSEND bit 
+    }
+ 
+    if (ADDSEND_FLAG != 0){
+		switch(wRFlag){
+			case 0://发送
+				if (i2c_interrupt_flag_get(I2C0, I2C_INT_FLAG_TBE)){
+                    i2c_data_transmit(I2C0, txbuffer[index_tx]);
+                    index_tx++;
+                }
+				if (i2c_interrupt_flag_get(I2C0, I2C_INT_FLAG_AERR)){
+                    wRFlag = 2;
+                    index_tx = 0;
+                    ADDSEND_FLAG = 0;
+                    i2c_interrupt_flag_clear(I2C0, I2C_INT_FLAG_AERR);
+                }
+				break;
+			case 1://接收
+				if (i2c_interrupt_flag_get(I2C0, I2C_INT_FLAG_RBNE)){
+                    if (index_rx < 20){
+                        rxbuffer[ (index_rx>0)?index_rx-1 : index_rx ] = i2c_data_receive(I2C0);//因为iic的特性，第一个收到的是移位寄存器的数据，是不需要的，但是在某些ic却没有这种情况，所以这里应该由自己需求决定要不要去掉第一个发送过来的字节
+                        index_rx++;
+                    }else{
+                        i2c_data_receive(I2C0); //过长丢弃
+                    }
+                }
+                if (i2c_interrupt_flag_get(I2C0, I2C_INT_FLAG_STPDET)){
+                    wRFlag = 2;
+                    index_rx = 0;
+                    ADDSEND_FLAG = 0;
+ 
+                    I2C_STAT0(I2C0); // clear: I2C_INT_FLAG_STPDET
+                    I2C_CTL0(I2C0) = I2C_CTL0(I2C0);
+                }
+				break;
+			case 2:
+				__nop();
+				break;
+			default:
+				//严重的错误，不应该会执行到这里
+				break;
+		}
+    }
+	
+	if(ADDSEND_FLAG == 1 && i2c_interrupt_flag_get(I2C0, I2C_INT_FLAG_RBNE)){//确定是收
+		wRFlag = 1;
+		for(int i=0; i<50; i++){//硬等一段时间
+			__nop();
+		}
+	}else if (ADDSEND_FLAG == 2 && i2c_interrupt_flag_get(I2C0, I2C_INT_FLAG_TBE)){ //确定是发
+        wRFlag = 0;
+		for(int i=0; i<50; i++){//硬等一段时间
+			__nop();
+		}
+	}
+}
+
+/**
+ * @fn         : 
+ * @brief      : iic0中断函数
+ * @return      {*}
+ * @attention  : 
+ * @author     : 
+ */
+void I2C0_EventIRQ_Handler()
+{
+    i2c0_rw_Data_slave(i2c0_send, i2c0_receiver);
+}
+ 
+/**
+ * @fn         :
+ * @brief      :
+ * @return      {*}
+ * @attention  :
+ * @author     : 
+ */
+void I2C0_ErrorIRQ_Handler(void)
+{
+    printf("function:%s, iic0 error\r\n", __func__);//会重复进入这个中断
+}
+
+
+
+ 
+/**
+ * @fn         : 
+ * @brief      : 选择要打开的iic外设，设置数据的输入输出，默认是100k的速度，地址可调        
+ * @return      {*}
+ * @attention  : 发送需要外部任务提供数组，接收需要外部任务提供指针
+ * @author     : 
+ * @param {iic_select} select
+ *              #open_iic0 ：打开iic0
+ *              #open_iic1 : 打开iic1
+ * @param {...} ...
+ *              #参数1 ：第一个iic的send的数组的指针 uint8_t*          
+ *              #参数2 ：指向第一个iic的receive的指针 uint8_t*        
+ *              #参数3 ：指向第一个iic的从地址 uint8_t 
+ */
+void iic_Init(iic_select select, ...)
+{
+    if((select & (open_iic0 | open_iic1)) != 0){
+        va_list args; //定义一个可变参数列表  
+        va_start(args,select);//初始化args指向强制参数arg的下一个参数;  
+ 
+        if((select & open_iic0) == open_iic0){//打开iic0
+            i2c0SlaveRegister((uint8_t *)va_arg(args,uint32_t));  //获取当前参数内容并将args指向下一个参数  
+            *((uint8_t **)va_arg(args,uint32_t)) = i2c0_receiver;  //获取当前参数内容并将args指向下一个参数 
+            i2c0SlaveInit(va_arg(args,uint32_t));  
+        }
+        
+        if((select & open_iic1) == open_iic1){//打开iic1
+            i2c1SlaveRegister((uint8_t *)va_arg(args,uint32_t));  //获取当前参数内容并将args指向下一个参数  
+            *((uint8_t **)va_arg(args,uint32_t)) = i2c1_receiver;  //获取当前参数内容并将args指向下一个参数 
+            i2c1SlaveInit(va_arg(args,uint32_t));
+        }
+        
+        va_end(args);//释放args
+    }else if(select != 0){
+        logE("Attempt to open an iic that does not exist, input number is :%d, format is: ...iic3|iic2|iic1|iic0\r\n", select);
+    }else{
+        logW("call the function : iic_Init, but not select iic\r\n");
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+uint32_t
+i2c0_master(uint32_t i2cx, uint8_t device_addr, uint8_t read_addr, uint8_t *p_buffer, uint16_t len) //, uint16_t len
 {
     // uint8_t rx_buffer2[10];
 
@@ -303,7 +531,7 @@ uint32_t i2c0_master(uint32_t i2cx, uint8_t device_addr, uint8_t read_addr, uint
         {
             *p_buffer = i2c_data_receive(i2cx);
             // delay_ms(100);
-            
+
             // p_buffer++;
             // len--;
         }
