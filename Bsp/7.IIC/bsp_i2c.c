@@ -8,10 +8,6 @@
 
 #include "bsp_i2c.h"
 
-uint8_t gi2c_recv = 0;
-#define I2C0_OWN_ADDRESS7 0x82
-#define I2C0_SPEED 100000
-#define I2C0_SLAVE_ADDRESS7 0xA0
 /*
     PB5---I2C0_SMBA   CPU_I2C0_ALERT_N   SMB_ALERT
     PB6---I2C0_SCL    CPU_I2C0_SCL       SMB_CK
@@ -54,23 +50,26 @@ void iic_init(uint32_t i2c_periph)
         gpio_mode_set(GPIOB, GPIO_MODE_AF, GPIO_PUPD_PULLUP, GPIO_PIN_7);
         gpio_output_options_set(GPIOB, GPIO_OTYPE_OD, GPIO_OSPEED_50MHZ, GPIO_PIN_7);
 
+        i2c_deinit(I2C0); // 复位I2C0
         /* configure I2C clock */
-        i2c_clock_config(I2C0, I2C0_SPEED, I2C_DTCY_2);
+        i2c_clock_config(I2C0, 100000, I2C_DTCY_2);
         /* configure I2C address */
-        i2c_mode_addr_config(I2C0, I2C_I2CMODE_ENABLE, I2C_ADDFORMAT_7BITS, I2C0_SLAVE_ADDRESS7);
-
-        /* 中断配置 */
-        nvic_irq_enable(I2C0_EV_IRQn, 3, 0);
-        nvic_irq_enable(I2C0_ER_IRQn, 4, 0);
-        /* enable the I2C0 interrupt */
-        i2c_interrupt_enable(I2C0, I2C_INT_ERR);
-        i2c_interrupt_enable(I2C0, I2C_INT_BUF);
-        i2c_interrupt_enable(I2C0, I2C_INT_EV);
+        i2c_mode_addr_config(I2C0, I2C_I2CMODE_ENABLE, I2C_ADDFORMAT_7BITS, I2C0_OWN_ADDRESS7);
 
         /* enable I2C0 */
         i2c_enable(I2C0);
         /* enable acknowledge */
         i2c_ack_config(I2C0, I2C_ACK_ENABLE);
+
+        nvic_priority_group_set(NVIC_PRIGROUP_PRE1_SUB3);
+        nvic_irq_enable(I2C0_EV_IRQn, 0, 3);
+        nvic_irq_enable(I2C0_ER_IRQn, 0, 2);
+
+        nvic_irq_enable(I2C0_EV_IRQn, 1, 0); // 启用I2C0中断
+        /* enable the I2C0 interrupt */
+        i2c_interrupt_enable(I2C0, I2C_INT_ERR);
+        i2c_interrupt_enable(I2C0, I2C_INT_EV);
+        i2c_interrupt_enable(I2C0, I2C_INT_BUF);
 
         break;
     case I2C1:
@@ -138,519 +137,7 @@ void iic_init(uint32_t i2c_periph)
     4、主设备接收数据并处理
      */
 
-// uint32_t i2cxWriteAddr()
-// {
-
-// }
-
-// uint32_t i2cxReadAddr()
-// {
-
-// }
-
-// uint32_t i2cxWriteByte()
-// {
-//     int i = 0;
-
-//     /* wait until I2C bus is idle  */
-//     while (i2c_flag_get(i2cx, I2C_FLAG_I2CBSY))
-//     {
-//         if ((I2CTimeout--) == 0)
-//             return I2C_TIMEOUT_UserCallback(0);
-//     }
-
-//     /* send a start condition to I2C bus */
-//     i2c_start_on_bus(i2cx);
-//     /* wait until SBSEND bit is set */
-//     while (!i2c_flag_get(i2cx, I2C_FLAG_SBSEND))
-//     {
-//         if ((I2CTimeout--) == 0)
-//             return I2C_TIMEOUT_UserCallback(1);
-//     }
-
-//     /* send slave address to I2C bus */
-//     i2c_master_addressing(i2cx, device_addr, I2C_TRANSMITTER);
-//     /* wait until ADDSEND bit is set */
-//     while (!i2c_flag_get(i2cx, I2C_FLAG_ADDSEND))
-//     {
-//         if ((I2CTimeout--) == 0)
-//             return I2C_TIMEOUT_UserCallback(2);
-//     }
-
-//     /* clear ADDSEND bit */
-//     i2c_flag_clear(i2cx, I2C_FLAG_ADDSEND);
-//     /* wait until the transmit data buffer is empty */
-//     while (!i2c_flag_get(i2cx, I2C_FLAG_TBE))
-//     {
-//         if ((I2CTimeout--) == 0)
-//             return I2C_TIMEOUT_UserCallback(3);
-//     }
-
-//     for (i = 0; i < len; i++)
-//     {
-//         /* data transmission */
-//         i2c_data_transmit(i2cx, p_buffer[i]);
-//         /* wait until the TBE bit is set */
-//         while (!i2c_flag_get(i2cx, I2C_FLAG_TBE))
-//         {
-//             if ((I2CTimeout--) == 0)
-//                 return I2C_TIMEOUT_UserCallback(4);
-//         }
-//     }
-
-//     /* send a stop condition to I2C bus */
-//     i2c_stop_on_bus(i2cx);
-//     while (I2C_CTL0(i2cx) & 0x0200)
-//     {
-//         if ((I2CTimeout--) == 0)
-//             return I2C_TIMEOUT_UserCallback(5);
-//     }
-
-//     return 1;
-// }
-
-// uint32_t i2cxReadByte()
-// {
-
-// }
-
-/* 接收中断测试 */
-uint8_t *i2c0_send;
-uint8_t i2c0_receiver[20];
-// uint8_t *i2c1_send;
-// uint8_t i2c1_receiver[20];
-
-/**
- * @fn         :
- * @brief      : iic0注册主设备读取时被读取的数据
- * @return      {*}
- * @attention  :
- * @author     :
- * @param {uint8_t} *array
- */
-void i2c0SlaveRegister(uint8_t *array)
-{
-    i2c0_send = array;
-}
-
-/**
- * @fn         :
- * @brief      : iic1注册主设备读取时被读取的数据
- * @return      {*}
- * @attention  :
- * @author     :
- * @param {uint8_t} *array
- */
-// void i2c1SlaveRegister(uint8_t *array)
-// {
-//     i2c1_send = array;
-// }
-
-
-/**
- * @fn         : 
- * @brief      : 单次接收有长度限制 20byte <不限制长度的接收是不可取的>，发送没有
- * @return      {*}
- * @attention  : 
- * @author     : 
- * @param {uint8_t} *i2c_send
- * @param {uint8_t} *i2c_receive
- */
-void i2c0_rw_Data_slave(uint8_t *const i2c_send, uint8_t *const i2c_receive)
-{
-    static uint8_t ADDSEND_FLAG = 0, wRFlag = 2;                // wRFalg ==0 是发送模式，==1 是接收模式
-    uint8_t *const rxbuffer = i2c_receive, *const txbuffer = i2c_send; //分别保存接收、发送的数据
-    static uint8_t index_rx = 0, index_tx = 0;
- 
-    if (i2c_interrupt_flag_get(I2C0, I2C_INT_FLAG_ADDSEND)){ //检查addsend标志位
-        ADDSEND_FLAG++;
-        i2c_interrupt_flag_clear(I2C0, I2C_INT_FLAG_ADDSEND);//清理 ADDSEND bit 
-    }
- 
-    if (ADDSEND_FLAG != 0){
-		switch(wRFlag){
-			case 0://发送
-				if (i2c_interrupt_flag_get(I2C0, I2C_INT_FLAG_TBE)){
-                    i2c_data_transmit(I2C0, txbuffer[index_tx]);
-                    index_tx++;
-                }
-				if (i2c_interrupt_flag_get(I2C0, I2C_INT_FLAG_AERR)){
-                    wRFlag = 2;
-                    index_tx = 0;
-                    ADDSEND_FLAG = 0;
-                    i2c_interrupt_flag_clear(I2C0, I2C_INT_FLAG_AERR);
-                }
-				break;
-			case 1://接收
-				if (i2c_interrupt_flag_get(I2C0, I2C_INT_FLAG_RBNE)){
-                    if (index_rx < 20){
-                        rxbuffer[ (index_rx>0)?index_rx-1 : index_rx ] = i2c_data_receive(I2C0);//因为iic的特性，第一个收到的是移位寄存器的数据，是不需要的，但是在某些ic却没有这种情况，所以这里应该由自己需求决定要不要去掉第一个发送过来的字节
-                        index_rx++;
-                    }else{
-                        i2c_data_receive(I2C0); //过长丢弃
-                    }
-                }
-                if (i2c_interrupt_flag_get(I2C0, I2C_INT_FLAG_STPDET)){
-                    wRFlag = 2;
-                    index_rx = 0;
-                    ADDSEND_FLAG = 0;
- 
-                    I2C_STAT0(I2C0); // clear: I2C_INT_FLAG_STPDET
-                    I2C_CTL0(I2C0) = I2C_CTL0(I2C0);
-                }
-				break;
-			case 2:
-				__nop();
-				break;
-			default:
-				//严重的错误，不应该会执行到这里
-				break;
-		}
-    }
-	
-	if(ADDSEND_FLAG == 1 && i2c_interrupt_flag_get(I2C0, I2C_INT_FLAG_RBNE)){//确定是收
-		wRFlag = 1;
-		for(int i=0; i<50; i++){//硬等一段时间
-			__nop();
-		}
-	}else if (ADDSEND_FLAG == 2 && i2c_interrupt_flag_get(I2C0, I2C_INT_FLAG_TBE)){ //确定是发
-        wRFlag = 0;
-		for(int i=0; i<50; i++){//硬等一段时间
-			__nop();
-		}
-	}
-}
-
-/**
- * @fn         : 
- * @brief      : iic0中断函数
- * @return      {*}
- * @attention  : 
- * @author     : 
- */
-void I2C0_EventIRQ_Handler()
-{
-    i2c0_rw_Data_slave(i2c0_send, i2c0_receiver);
-}
- 
-/**
- * @fn         :
- * @brief      :
- * @return      {*}
- * @attention  :
- * @author     : 
- */
-void I2C0_ErrorIRQ_Handler(void)
-{
-    printf("function:%s, iic0 error\r\n", __func__);//会重复进入这个中断
-}
-
-
-
- 
-/**
- * @fn         : 
- * @brief      : 选择要打开的iic外设，设置数据的输入输出，默认是100k的速度，地址可调        
- * @return      {*}
- * @attention  : 发送需要外部任务提供数组，接收需要外部任务提供指针
- * @author     : 
- * @param {iic_select} select
- *              #open_iic0 ：打开iic0
- *              #open_iic1 : 打开iic1
- * @param {...} ...
- *              #参数1 ：第一个iic的send的数组的指针 uint8_t*          
- *              #参数2 ：指向第一个iic的receive的指针 uint8_t*        
- *              #参数3 ：指向第一个iic的从地址 uint8_t 
- */
-void iic_Init(iic_select select, ...)
-{
-    if((select & (open_iic0 | open_iic1)) != 0){
-        va_list args; //定义一个可变参数列表  
-        va_start(args,select);//初始化args指向强制参数arg的下一个参数;  
- 
-        if((select & open_iic0) == open_iic0){//打开iic0
-            i2c0SlaveRegister((uint8_t *)va_arg(args,uint32_t));  //获取当前参数内容并将args指向下一个参数  
-            *((uint8_t **)va_arg(args,uint32_t)) = i2c0_receiver;  //获取当前参数内容并将args指向下一个参数 
-            i2c0SlaveInit(va_arg(args,uint32_t));  
-        }
-        
-        if((select & open_iic1) == open_iic1){//打开iic1
-            i2c1SlaveRegister((uint8_t *)va_arg(args,uint32_t));  //获取当前参数内容并将args指向下一个参数  
-            *((uint8_t **)va_arg(args,uint32_t)) = i2c1_receiver;  //获取当前参数内容并将args指向下一个参数 
-            i2c1SlaveInit(va_arg(args,uint32_t));
-        }
-        
-        va_end(args);//释放args
-    }else if(select != 0){
-        logE("Attempt to open an iic that does not exist, input number is :%d, format is: ...iic3|iic2|iic1|iic0\r\n", select);
-    }else{
-        logW("call the function : iic_Init, but not select iic\r\n");
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-uint32_t
-i2c0_master(uint32_t i2cx, uint8_t device_addr, uint8_t read_addr, uint8_t *p_buffer, uint16_t len) //, uint16_t len
-{
-    // uint8_t rx_buffer2[10];
-
-    I2CTimeout = I2CT_LONG_TIMEOUT;
-    /* wait until I2C bus is idle */
-    while (i2c_flag_get(i2cx, I2C_FLAG_I2CBSY))
-    {
-        if ((I2CTimeout--) == 0)
-            return I2C_TIMEOUT_UserCallback(6);
-    }
-
-    I2CTimeout = I2CT_FLAG_TIMEOUT;
-    /* send a start condition to I2C bus */
-    i2c_start_on_bus(i2cx);
-    /* wait until SBSEND bit is set */
-    while (!i2c_flag_get(i2cx, I2C_FLAG_SBSEND))
-    {
-        if ((I2CTimeout--) == 0)
-            return I2C_TIMEOUT_UserCallback(7);
-    }
-
-    /* send slave address to I2C bus */
-    i2c_master_addressing(i2cx, device_addr, I2C_TRANSMITTER);
-    I2CTimeout = I2CT_FLAG_TIMEOUT;
-    /* wait until ADDSEND bit is set */
-    while (!i2c_flag_get(i2cx, I2C_FLAG_ADDSEND))
-    {
-        if ((I2CTimeout--) == 0)
-            return I2C_TIMEOUT_UserCallback(8);
-    }
-
-    /* clear ADDSEND bit */
-    i2c_flag_clear(i2cx, I2C_FLAG_ADDSEND);
-    /* wait until the transmit data buffer is empty */
-    while (!i2c_flag_get(i2cx, I2C_FLAG_TBE))
-    {
-        if ((I2CTimeout--) == 0)
-            return I2C_TIMEOUT_UserCallback(9);
-    }
-
-    /* send the internal address to write to */
-    i2c_data_transmit(i2cx, read_addr);
-    I2CTimeout = I2CT_FLAG_TIMEOUT;
-    /* wait until the BTC bit is set */
-    while (!i2c_flag_get(i2cx, I2C_FLAG_BTC))
-    {
-        if ((I2CTimeout--) == 0)
-            return I2C_TIMEOUT_UserCallback(10);
-    }
-
-    /* send a start condition to I2C bus */
-    i2c_start_on_bus(i2cx);
-    I2CTimeout = I2CT_FLAG_TIMEOUT;
-    /* wait until SBSEND bit is set */
-    while (!i2c_flag_get(i2cx, I2C_FLAG_SBSEND))
-    {
-        if ((I2CTimeout--) == 0)
-            return I2C_TIMEOUT_UserCallback(11);
-    }
-
-    /* send slave address to I2C bus */
-    i2c_master_addressing(i2cx, device_addr, I2C_RECEIVER);
-
-    I2CTimeout = I2CT_FLAG_TIMEOUT;
-    /* wait until ADDSEND bit is set */
-    while (!i2c_flag_get(i2cx, I2C_FLAG_ADDSEND))
-    {
-        if ((I2CTimeout--) == 0)
-            return I2C_TIMEOUT_UserCallback(12);
-    }
-    /* clear the ADDSEND bit */
-    i2c_flag_clear(i2cx, I2C_FLAG_ADDSEND);
-
-    while (len)
-    {
-        // 修改后的关键逻辑片段
-        if (len > 1)
-        {
-            i2c_ackpos_config(i2cx, I2C_ACKPOS_NEXT);
-        }
-        else
-        {
-            i2c_ack_config(i2cx, I2C_ACK_DISABLE);
-            i2c_stop_on_bus(i2cx); // 提前发送STOP
-        }
-
-        I2CTimeout = I2CT_LONG_TIMEOUT;
-        // for (int i = 0; i < len; i++)
-        // {
-        while (!i2c_flag_get(i2cx, I2C_FLAG_RBNE))
-        {
-            if ((I2CTimeout--) == 0)
-                return I2C_TIMEOUT_UserCallback(13);
-        }; // 严格等待每个字节
-        {
-            *p_buffer = i2c_data_receive(i2cx);
-            // delay_ms(100);
-
-            // p_buffer++;
-            // len--;
-        }
-        // if (i == len - 2)
-        // { // 倒数第二个字节
-        //     i2c_ack_config(i2cx, I2C_ACK_DISABLE);
-        //     i2c_stop_on_bus(i2cx);
-        // }
-        // }
-        // delay_1ms(100);
-    }
-
-    // i2c_ackpos_config(i2cx, I2C_ACKPOS_NEXT); // 这一步是关键
-    // while (len)
-    // {
-    //     if (1 == len)
-    //     {
-    //         i2c_ackpos_config(i2cx, I2C_ACKPOS_CURRENT); // 这一步是关键
-    //         i2c_ack_config(i2cx, I2C_ACK_DISABLE);
-    //     }
-    //     if (i2c_flag_get(i2cx, I2C_FLAG_RBNE))
-    //     {
-    //         *p_buffer = i2c_data_receive(i2cx);
-    //         i2c_ack_config(i2cx, I2C_ACK_ENABLE);
-    //         p_buffer++;
-    //         len--;
-    //     }
-    //     i2c_flag_clear(i2cx, I2C_FLAG_RBNE);
-    // }
-
-    // for (uint8_t i = 0; i < 10; i++)
-    // {
-    //     if (i == 9)
-    //     {                                          // 倒数第二个字节后配置NACK
-    //         i2c_ack_config(I2C0, I2C_ACK_DISABLE); // 禁用ACK
-    //         i2c_stop_on_bus(I2C0);                 // 提前发送停止条件
-    //     }
-    //     while (!i2c_flag_get(I2C0, I2C_FLAG_RBNE))
-    //     {
-    //         if ((I2CTimeout--) == 0)
-    //             return I2C_TIMEOUT_UserCallback(13);
-    //     } // 等待接收缓冲区非空
-    //     p_buffer[i] = i2c_data_receive(I2C0); // 读取数据到数组
-    // }
-
-    // while (i2c_flag_get(I2C0, I2C_FLAG_I2CBSY))
-    // {
-    //     if ((I2CTimeout--) == 0)
-    //         return I2C_TIMEOUT_UserCallback(14);
-    // } // 等待总线空闲
-    // i2c_ack_config(I2C0, I2C_ACK_ENABLE); // 恢复ACK状态
-
-    // if (1 == len)
-    // {
-    //     /* send a stop condition to I2C bus */
-    //     i2c_stop_on_bus(i2cx);
-    // }
-
-    /* while there is data to be read */
-    // while (len)
-    // {
-    //     if (3 == len)
-    //     {
-    //         /* wait until the BTC bit is set */
-    //         while (!i2c_flag_get(i2cx, I2C_FLAG_BTC))
-    //         {
-    //             if ((I2CTimeout--) == 0)
-    //                 return I2C_TIMEOUT_UserCallback(13);
-    //         }
-    //         /* disable acknowledge */
-    //         i2c_ack_config(i2cx, I2C_ACK_DISABLE);
-    //     }
-    //     else if (2 == len)
-    //     {
-    //         /* wait until the BTC bit is set */
-    //         while (!i2c_flag_get(i2cx, I2C_FLAG_BTC))
-    //         {
-    //             if ((I2CTimeout--) == 0)
-    //                 return I2C_TIMEOUT_UserCallback(14);
-    //         }
-    //         /* send a stop condition to I2C bus */
-    //         i2c_stop_on_bus(i2cx);
-    //     }
-
-    //     for (uint16_t i = 0; i < len;)
-    //     {
-    //         if (!i2c_flag_get(i2cx, I2C_FLAG_RBNE))
-    //         {
-    //             p_buffer[i++] = i2c_data_receive(i2cx);
-    //             // i2c_ackpos_config(i2cx, I2C_ACKPOS_NEXT);
-    //         }
-    //     }
-
-    /* wait until the RBNE bit is set and clear it */
-    // while (!i2c_flag_get(i2cx, I2C_FLAG_RBNE))
-    // {
-    //     /* read a byte from the EEPROM */
-    //     // teatData = i2c_data_receive(i2cx); // 逐字节存入数组
-    //     // *p_buffer = i2c_data_receive(i2cx);
-    //     /* point to the next location where the byte read will be saved */
-    //     // p_buffer++;
-    //     /* decrement the read bytes counter */
-    //     // len--;
-    // }
-    // }
-
-    /* wait until the stop condition is finished */
-    // while (I2C_CTL0(i2cx) & 0x0200)
-    // {
-    //     if ((I2CTimeout--) == 0)
-    //         return I2C_TIMEOUT_UserCallback(15);
-    // }
-    /* enable acknowledge */
-    i2c_ack_config(i2cx, I2C_ACK_ENABLE);
-    i2c_ackpos_config(i2cx, I2C_ACKPOS_CURRENT);
-
-    return 1;
-}
-
+/* 主机查询方式 发送数据 */
 uint32_t i2c0_bytes_write(uint32_t i2cx, uint8_t device_addr, const uint8_t *p_buffer, uint16_t len)
 {
     int i = 0;
@@ -713,6 +200,7 @@ uint32_t i2c0_bytes_write(uint32_t i2cx, uint8_t device_addr, const uint8_t *p_b
     return 1;
 }
 
+/* 主机查询方式 读取数据 */
 uint32_t i2c0_bytes_read(uint32_t i2cx, uint8_t device_addr, uint8_t read_addr, uint8_t *p_buffer, uint16_t len)
 {
     //   i2c0_start();
@@ -855,7 +343,18 @@ uint32_t i2c0_bytes_read(uint32_t i2cx, uint8_t device_addr, uint8_t read_addr, 
     return 1;
 }
 
-uint32_t event1;
+/**
+ * @brief  Basic management of the timeout situation.
+ * @param  errorCode：错误代码，可以用来定位是哪个环节出错.
+ * @retval 返回0，表示IIC读取失败.
+ */
+static uint32_t I2C_TIMEOUT_UserCallback(uint8_t errorCode)
+{
+    /* Block communication and all processes */
+    I2C_ERROR("I2C 等待超时!errorCode = %d", errorCode);
+
+    return 0;
+}
 
 /*!
     \brief      handle I2C0 event interrupt request
@@ -865,10 +364,41 @@ uint32_t event1;
 */
 void i2c0_event_irq_handler(void)
 {
+    /* 主机中断发送配置 */
+    // if (i2c_interrupt_flag_get(I2C0, I2C_INT_FLAG_SBSEND))
+    // {
+    //     /* send slave address */
+    //     i2c_master_addressing(I2C0, I2C1_SLAVE_ADDRESS7, I2C_TRANSMITTER);
+    // }
+    // else if (i2c_interrupt_flag_get(I2C0, I2C_INT_FLAG_ADDSEND))
+    // {
+    //     /*clear ADDSEND bit */
+    //     i2c_interrupt_flag_clear(I2C0, I2C_INT_FLAG_ADDSEND);
+    // }
+    // else if (i2c_interrupt_flag_get(I2C0, I2C_INT_FLAG_TBE))
+    // {
+    //     if (i2c_nbytes > 0)
+    //     {
+    //         /* the master sends a data byte */
+    //         i2c_data_transmit(I2C0, *i2c_txbuffer++);
+    //         i2c_nbytes--;
+    //     }
+    //     else
+    //     {
+    //         /* the master sends a stop condition to I2C bus */
+    //         i2c_stop_on_bus(I2C0);
+    //         /* disable the I2C0 interrupt */
+    //         i2c_interrupt_disable(I2C0, I2C_INT_ERR);
+    //         i2c_interrupt_disable(I2C0, I2C_INT_BUF);
+    //         i2c_interrupt_disable(I2C0, I2C_INT_EV);
+    //     }
+    // }
+    
+    /* 主机中断接收配置 */
     if (i2c_interrupt_flag_get(I2C0, I2C_INT_FLAG_SBSEND))
     {
         /* the master sends slave address */
-        i2c_master_addressing(I2C0, I2C1_SLAVE_ADDRESS7, I2C_RECEIVER);
+        i2c_master_addressing(I2C0, I2C0_SLAVE_ADDRESS7, I2C_RECEIVER);
     }
     else if (i2c_interrupt_flag_get(I2C0, I2C_INT_FLAG_ADDSEND))
     {
@@ -972,207 +502,7 @@ void i2c0_error_irq_handler(void)
     i2c_interrupt_disable(I2C0, I2C_INT_EV);
 }
 
-void i2c_nvic_config(void)
-{
-    nvic_priority_group_set(NVIC_PRIGROUP_PRE1_SUB3);
-    nvic_irq_enable(I2C0_EV_IRQn, 0, 3);
-    // nvic_irq_enable(I2C1_EV_IRQn, 0, 4);
-    nvic_irq_enable(I2C0_ER_IRQn, 0, 2);
-    // nvic_irq_enable(I2C1_ER_IRQn, 0, 1);
-}
-
-/* I2C 中断接收测试 */
-uint8_t i2c_buffer_receiver[16];
-volatile uint8_t *i2c_rxbuffer;
-volatile uint16_t i2c_nbytes;
-volatile ErrStatus status;
-ErrStatus state = ERROR;
-
-void i2c0_irq_test(void)
-{
-
-    printf(" iic irq test \r\n");
-
-    i2c_rxbuffer = i2c_buffer_receiver;
-    i2c_nbytes = 16;
-    status = ERROR;
-
-    /* enable the I2C0 interrupt */
-    i2c_interrupt_enable(I2C0, I2C_INT_ERR);
-    i2c_interrupt_enable(I2C0, I2C_INT_EV);
-    i2c_interrupt_enable(I2C0, I2C_INT_BUF);
-
-    if (2 == i2c_nbytes)
-    {
-        /* send ACK for the next byte */
-        i2c_ackpos_config(I2C0, I2C_ACKPOS_NEXT);
-    }
-    /* the master waits until the I2C bus is idle */
-    while (i2c_flag_get(I2C0, I2C_FLAG_I2CBSY))
-        ;
-    /* the master sends a start condition to I2C bus */
-    i2c_start_on_bus(I2C0);
-
-    while (i2c_nbytes > 0)
-        ;
-    while (SUCCESS != status)
-        ;
-
-    // 打印接收到的数据
-    if (SUCCESS == status)
-    {
-        printf("Received data from I2C0:\r\n");
-        for (int i = 0; i < i2c_nbytes; i++)
-        {
-            printf("%02X ", i2c_buffer_receiver[i]);
-        }
-        printf("\r\n");
-    }
-    else
-    {
-        printf("I2C communication failed!\r\n");
-    }
-}
-
-uint32_t I2C_SLAVE_ByteWrite(uint32_t i2cx, uint8_t device_addr, const uint8_t *p_buffer, uint16_t len)
-{
-
-    int i = 0;
-    // iic_init(I2C0);
-
-    /* 等待总线空闲 wait until I2C bus is idle  */
-    while (i2c_flag_get(i2cx, I2C_FLAG_I2CBSY))
-    {
-        if ((I2CTimeout--) == 0)
-            return I2C_TIMEOUT_UserCallback(0);
-    }
-
-    /* 1 发送开始条件 send a start condition to I2C bus */
-    i2c_start_on_bus(i2cx);
-    /* 判断开始是否成功 wait until SBSEND bit is set */
-    while (!i2c_flag_get(i2cx, I2C_FLAG_SBSEND))
-    {
-        if ((I2CTimeout--) == 0)
-            return I2C_TIMEOUT_UserCallback(1);
-    }
-
-    /* 2 发送从设备地址 send slave address to I2C bus */
-    i2c_master_addressing(i2cx, device_addr, I2C_TRANSMITTER);
-    /* 判断发送是否成功 wait until ADDSEND bit is set */
-    while (!i2c_flag_get(i2cx, I2C_FLAG_ADDSEND))
-    {
-        if ((I2CTimeout--) == 0)
-            return I2C_TIMEOUT_UserCallback(2);
-    }
-
-    /* 3 清除发送标志 clear ADDSEND bit */
-    i2c_flag_clear(i2cx, I2C_FLAG_ADDSEND);
-    /* 等待发送缓冲区为空 wait until the transmit data buffer is empty */
-    while (!i2c_flag_get(i2cx, I2C_FLAG_TBE))
-    {
-        if ((I2CTimeout--) == 0)
-            return I2C_TIMEOUT_UserCallback(3);
-    }
-
-    for (i = 0; i < len; i++)
-    {
-        /* 数据发送 data transmission */
-        i2c_data_transmit(i2cx, p_buffer[i]);
-        /* 判断发送成功标志 wait until the TBE bit is set */
-        while (!i2c_flag_get(i2cx, I2C_FLAG_TBE))
-        {
-            if ((I2CTimeout--) == 0)
-                return I2C_TIMEOUT_UserCallback(4);
-        }
-    }
-    /* 发送停止条件 send a stop condition to I2C bus */
-    i2c_stop_on_bus(i2cx);
-    while (I2C_CTL0(i2cx) & 0x0200)
-    {
-        if ((I2CTimeout--) == 0)
-            return I2C_TIMEOUT_UserCallback(5);
-    }
-}
-
-/**
- * @brief  Wait for SLAVE DEV Standby state
- * @param  无
- * @retval 无
- */
-// void I2C_SLAVE_WaitEepromStandbyState(void)
-// {
-//     uint16_t SR1_Tmp = 0;
-
-//     do
-//     {
-//         /* Send START condition */
-//         i2c_start_on_bus(i2c0);
-
-//         /* 读寄存器 Read I2C1 SR1 register */
-
-//         SR1_Tmp = I2C_ReadRegister(EEPROM_I2Cx, I2C_Register_SR1);
-//         /* 发送待写入的地址 Send EEPROM address for write */
-
-//         I2C_Send7bitAddress(EEPROM_I2Cx, EEPROM_ADDRESS, I2C_Direction_Transmitter);
-//     } while (!(I2C_ReadRegister(EEPROM_I2Cx, I2C_Register_SR1) & 0x0002));
-
-//     /* Clear AF flag */
-
-//     I2C_ClearFlag(EEPROM_I2Cx, I2C_FLAG_AF);
-//     /* STOP condition */
-
-//     i2c_stop_on_bus(i2c0);
-// }
-
-/**
- * @brief  Basic management of the timeout situation.
- * @param  errorCode：错误代码，可以用来定位是哪个环节出错.
- * @retval 返回0，表示IIC读取失败.
- */
-static uint32_t I2C_TIMEOUT_UserCallback(uint8_t errorCode)
-{
-    /* Block communication and all processes */
-    I2C_ERROR("I2C 等待超时!errorCode = %d", errorCode);
-
-    return 0;
-}
-
-// #define I2C0_SLAVE_ADDRESS7    0x72
-// #define I2C1_SLAVE_ADDRESS7    0x82
-
-// uint8_t i2c_receiver[16];
-
-// void i2c0_rec_1type()
-// {
-//    int i = 0;
-//     /* wait until I2C bus is idle */
-//     while(i2c_flag_get(I2C0, I2C_FLAG_I2CBSY));
-//     /* send a start condition to I2C bus */
-//     i2c_start_on_bus(I2C0);
-//     /* wait until SBSEND bit is set */
-//     while(!i2c_flag_get(I2C0, I2C_FLAG_SBSEND));
-//     /* send slave address to I2C bus */
-//     i2c_master_addressing(I2C0, I2C1_SLAVE_ADDRESS7, I2C_RECEIVER);
-//     /* wait until ADDSEND bit is set */
-//     while(!i2c_flag_get(I2C0, I2C_FLAG_ADDSEND));
-
-//     /* N=1,reset ACKEN bit before clearing ADDRSEND bit */
-//     i2c_ack_config(I2C0, I2C_ACK_DISABLE);
-//     /* clear ADDSEND bit */
-//     i2c_flag_clear(I2C0, I2C_FLAG_ADDSEND);
-//     /* N=1,send stop condition after clearing ADDRSEND bit */
-//     i2c_stop_on_bus(I2C0);
-//     /* wait until the RBNE bit is set */
-//     while(!i2c_flag_get(I2C0, I2C_FLAG_RBNE));
-//     /* read a data from I2C_DATA */
-//     i2c_receiver[i++] = i2c_data_receive(I2C0);
-//     /* wait until stop condition generate */
-//     while(I2C_CTL0(I2C0) & I2C_CTL0_STOP);
-//     /* enable acknowledge */
-//     i2c_ack_config(I2C0, I2C_ACK_ENABLE);
-
-//     printf("0x%02X ", i2c_receiver[0]);
-// }
+/* -------------------------以下为原工程 I2C逻辑-------------------------- */
 
 /**************************************************************
  * 函数名称: iic_config
@@ -1556,224 +886,4 @@ void iic_error_irq_handle(uint32_t i2c_periph)
     i2c_interrupt_disable(i2c_periph, I2C_INT_ERR);
     i2c_interrupt_disable(i2c_periph, I2C_INT_EV);
     i2c_interrupt_disable(i2c_periph, I2C_INT_BUF);
-}
-
-// #define I2C_10BIT_ADDRESS 0
-// #define I2C0_SLAVE_ADDRESS10 0x0322
-// uint8_t i2c_receiver[16];
-
-// #define I2C0_OWN_ADDRESS7 0x72
-// #define I2C0_SLAVE_ADDRESS7 0x43
-// uint8_t i2c_transmitter[16];
-
-// /* 主机发送 */
-// void masterSend(void)
-// {
-//     /* 初始化并填充数据0x80-0x8F */
-//     int i;
-//     for (i = 0; i < 16; i++)
-//     {
-//         i2c_transmitter[i] = i + 0x80;
-//     }
-
-//     printf(" iic bus start \r\n");
-
-//     /* 等待总线空闲 RESET = 0; SET = !RESET = 1 */
-//     while (!RESET == i2c_flag_get(I2C0, I2C_FLAG_I2CBSY))
-//     {
-//         i2c_stop_on_bus(I2C0);
-//         // printf("iic bus not idle\r\n");
-//     };
-//     /* 发送开始信号 */
-//     i2c_start_on_bus(I2C0);
-//     /* 等待开始信号发送成功,被设置则发送成功 */
-//     while (RESET == !i2c_flag_get(I2C0, I2C_FLAG_SBSEND))
-//     {
-//         i2c_stop_on_bus(I2C0);
-//         // printf("iic bus not start\r\n");
-//     };
-//     /* 发送从设备地址 */
-//     i2c_master_addressing(I2C0, I2C0_SLAVE_ADDRESS7, I2C_TRANSMITTER);
-//     /* 等待发送成功标志 */
-//     while (RESET == !i2c_flag_get(I2C0, I2C_FLAG_ADDSEND))
-//     {
-//         i2c_stop_on_bus(I2C0);
-//         // printf("slave addr not send\r\n");
-//     };
-//     /* 清除标志 */
-//     i2c_flag_clear(I2C0, I2C_FLAG_ADDSEND);
-//     /* 等待传输数据缓冲区为空 */
-//     while (RESET == !i2c_flag_get(I2C0, I2C_FLAG_TBE))
-//     {
-//         // i2c_stop_on_bus(I2C0);
-//         // printf("rec buffer non-empty\r\n");
-//     };
-
-//     for (i = 0; i < 16; i++)
-//     {
-//         /* 数据发送 */
-//         i2c_data_transmit(I2C0, i2c_transmitter[i]);
-//         /* 等待发送标志位 */
-//         while (RESET == !i2c_flag_get(I2C0, I2C_FLAG_TBE))
-//         {
-//             i2c_stop_on_bus(I2C0);
-//             // printf("send type TBE busy\r\n");
-//         };
-//     }
-//     /* 发送停止信号 */
-//     i2c_stop_on_bus(I2C0);
-//     while (!RESET == I2C_CTL0(I2C0) & I2C_CTL0_STOP)
-//     {
-//         // i2c_stop_on_bus(I2C0);
-//         // printf("iic bus exit\r\n");
-//     };
-
-//     // iic_read_addr(caller, I2C0, 0x11, I2C_RECEIVER);
-
-// }
-
-// /* 主机接收  */
-// void masterRec(void)
-// {
-//     uint8_t i;
-// #if I2C_10BIT_ADDRESS
-//     uint8_t slave10_first_byte, slave10_second_byte; // 10位地址拆为两部分
-// #endif
-
-//     printf("\r\n I2C Start\r\n");
-
-//     /* 等待总线空闲 */
-//     while (i2c_flag_get(I2C0, I2C_FLAG_I2CBSY))
-//         ;
-//     /* 发送起始信号 */
-//     i2c_start_on_bus(I2C0);
-//     /* 等待SBSEND置1 确保起始信号发送成功 */
-//     while (!i2c_flag_get(I2C0, I2C_FLAG_SBSEND))
-//         ;
-
-// #if I2C_10BIT_ADDRESS
-//     slave10_first_byte = (0xF0) | (uint8_t)((I2C0_SLAVE_ADDRESS10 & 0x0300) >> 7);
-//     /* 发送10位地址第1部分 */
-//     i2c_master_addressing(I2C0, slave10_first_byte, I2C_TRANSMITTER);
-//     /* 等待ADD10SEND被设置 发送成功的信号 */
-//     while (!i2c_flag_get(I2C0, I2C_FLAG_ADD10SEND))
-//         ;
-//     /* 传递第2部分剩下的8位 */
-//     slave10_second_byte = (uint8_t)(I2C0_SLAVE_ADDRESS10 & 0x00FF);
-//     /* 发送第2部分 */
-//     i2c_master_addressing(I2C0, slave10_second_byte, I2C_TRANSMITTER);
-//     /* 等待发送成功标志 */
-//     while (!i2c_flag_get(I2C0, I2C_FLAG_ADDSEND))
-//         ;
-//     /* 清除标志 */
-//     i2c_flag_clear(I2C0, I2C_FLAG_ADDSEND);
-//     /* 发送开始信号 */
-//     i2c_start_on_bus(I2C0);
-//     /* 确认开始信号发送成功 */
-//     while (!i2c_flag_get(I2C0, I2C_FLAG_SBSEND))
-//         ;
-//     /* 发送从机地址第1字节 */
-//     i2c_master_addressing(I2C0, slave10_first_byte, I2C_RECEIVER);
-// #else
-//     /* 发送从机地址 */
-//     i2c_master_addressing(I2C0, I2C0_SLAVE_ADDRESS7, I2C_RECEIVER);
-// #endif
-//     /* 等待发送成功标志 */
-//     while (!i2c_flag_get(I2C0, I2C_FLAG_ADDSEND))
-//         ;
-//     /* 清除标志 */
-//     i2c_flag_clear(I2C0, I2C_FLAG_ADDSEND);
-
-//     for (i = 0; i < 16; i++)
-//     {
-//         if (13 == i)
-//         {
-//             /* 等待数据发送完成 */
-//             while (!i2c_flag_get(I2C0, I2C_FLAG_BTC))
-//                 ;
-//             /* 禁用应答 */
-//             i2c_ack_config(I2C0, I2C_ACK_DISABLE);
-//         }
-//         /* 等待接收成功标志位 */
-//         while (!i2c_flag_get(I2C0, I2C_FLAG_RBNE))
-//             ;
-//         // 在这里处理数据
-//         /* 读取数据 */
-//         i2c_receiver[i] = i2c_data_receive(I2C0);
-//     }
-//     /* 发送停止条件 */
-//     i2c_stop_on_bus(I2C0);
-//     /* 等待停止条件生成 */
-//     while (I2C_CTL0(I2C0) & I2C_CTL0_STOP)
-//         ;
-//     /* 使能应答 */
-//     i2c_ack_config(I2C0, I2C_ACK_ENABLE);
-
-//     for (i = 0; i < 16; i++)
-//     {
-//         printf("\r\nThe I2C Rec Data :0x%02X \r\n", i2c_receiver[i]);
-//     }
-// }
-
-// /* 中断触发 */
-// uint8_t data;
-
-// void I2C0_EV_IRQHandler(void)
-// {
-//     if (i2c_flag_get(I2C0, I2C_FLAG_ADDSEND))
-//     { // 从机地址匹配成功
-//         i2c_flag_clear(I2C0, I2C_FLAG_ADDSEND);
-//         i2c_data_receive(I2C0); // 清除接收缓冲区
-//     }
-
-//     if (i2c_flag_get(I2C0, I2C_FLAG_RBNE))
-//     { // 接收数据就绪
-//         i2c_flag_clear(I2C0, I2C_FLAG_RBNE);
-//         data = i2c_data_receive(I2C0); // 读取数据
-//         usart0_send_byte(data);        // 回环
-//     }
-
-//     if (i2c_flag_get(I2C0, I2C_FLAG_STPDET))
-//     { // 停止条件检测
-//         i2c_flag_clear(I2C0, I2C_FLAG_STPDET);
-//         i2c_disable(I2C0); // 关闭I2C以重新初始化
-//         i2c_enable(I2C0);  // 重新使能I2C
-//     }
-//     if (i2c_flag_get(I2C0, I2C_FLAG_AERR))
-//     { // 检测NACK
-//         i2c_flag_clear(I2C0, I2C_FLAG_AERR);
-//         // 重试或报错
-//         // printf("NACK detected!\r\n");
-//     }
-// }
-
-void I2C_Send_Data(unsigned char slaveadr, unsigned char data)
-{
-    while (i2c_flag_get(I2C0, I2C_FLAG_I2CBSY))
-        ;
-
-    i2c_start_on_bus(I2C0); // 起始信号
-
-    while (!i2c_flag_get(I2C0, I2C_FLAG_SBSEND))
-        ;
-
-    i2c_master_addressing(I2C0, slaveadr, I2C_TRANSMITTER); // 从机地址
-
-    while (!i2c_flag_get(I2C0, I2C_FLAG_ADDSEND))
-        ;
-
-    i2c_flag_clear(I2C0, I2C_FLAG_ADDSEND); // 主机地址从机响应
-
-    while (SET != i2c_flag_get(I2C0, I2C_FLAG_TBE))
-        ; // IIC_DATA在传输时为空
-
-    i2c_data_transmit(I2C0, data);
-
-    while (!i2c_flag_get(I2C0, I2C_FLAG_BTC))
-        ; // 字节传输完成
-
-    i2c_stop_on_bus(I2C0);
-
-    while (I2C_CTL0(I2C0) & 0x0200)
-        ;
 }

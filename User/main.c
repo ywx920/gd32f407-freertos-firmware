@@ -148,91 +148,39 @@ void TcpClientCreateTask(void)
   taskEXIT_CRITICAL(); /* 推出临界区 */
 }
 
-// void i2c_write(uint8_t reg,uint8_t data)
-// {
-//     char caller[13] = "i2c0_write";
-
-//     //等待 IIC 空闲
-//     iic_state_check(caller, caller, I2C0, I2C_FLAG_I2CBSY, 10);
-//     iic_start(caller, I2C0);
-//     iic_write_addr(caller, I2C0, I2C_SLAVE_BIT7, I2C_TRANSMITTER);
-//     iic_write_byte(caller, I2C0, reg);
-//     iic_write_byte(caller, I2C0, data);
-//     iic_stop(caller, I2C0);
-
-//     bmc_debug(1,"%s over\n",caller);
-// }
-
-// uint8_t i2c_read(uint8_t reg)
-// {
-//     uint8_t ret = 0;
-//     char caller[12] = "i2c0_read";
-
-//     //等待 IIC 空闲
-//     iic_state_check(caller, caller, I2C0, I2C_FLAG_I2CBSY, 10);
-//     iic_start(caller, I2C0);
-//     iic_write_addr(caller, I2C0, I2C_SLAVE_BIT7, I2C_TRANSMITTER);//地址 + 写
-//     iic_write_byte(caller, I2C0, reg);//写 寄存器
-//     iic_stop(caller, I2C0);  //总线结束
-//     iic_state_check(caller, caller, I2C0, I2C_FLAG_I2CBSY, 10);
-//     iic_start(caller, I2C0);
-//     iic_read_addr(caller, I2C0, I2C_SLAVE_BIT7, I2C_RECEIVER);//地址 + 读
-
-//     ret = iic_read_byte(caller, I2C0, 0); //NACK
-
-//     iic_stop(caller, I2C0);  //总线结束
-
-//     return ret;
-// }
-
-uint8_t data_to_send[] = {0x33, 0x02, 0x03, 0x04};
-uint16_t data_length = sizeof(data_to_send) / sizeof(data_to_send[0]);
-
-// 目标从设备地址
+// I2C查询方式测试
 uint8_t slave_address = 0xa0;
 uint8_t reg_address = 0x10;
-
 uint8_t rx_buffer[10] = {0};
-
-uint8_t rx1 = 0;
-uint8_t rx2 = 0;
-uint8_t rx3 = 0;
-
 uint8_t tx_buffer[16] = {0x11, 0x22, 0x33, 0x44}; // 前4元素填充测试
+
+/* I2C中断方式测试 */
+uint8_t i2c_buffer_transmitter[16];
+uint8_t i2c_buffer_receiver[16];
+volatile uint8_t *i2c_txbuffer;
+volatile uint8_t *i2c_rxbuffer;
+volatile uint16_t i2c_nbytes;
+volatile ErrStatus status;
+ErrStatus state = ERROR;
 
 int main(void)
 {
   SysModule_Init();
-  i2c_nvic_config();
 
-  // i2c0_start();
-  // i2c0_send_addr(0xa0);
-  // i2c0_send_type(0x22);
+  /* 初始化I2C中断数据处理的参数 */
+  // i2c_txbuffer = i2c_buffer_transmitter;
+  i2c_rxbuffer = i2c_buffer_receiver;
+  i2c_nbytes = 16;
+  status = ERROR;
 
-  printf(" iic test write \r\n");
-
+  printf(" iic test write data \r\n");
   // i2c0_bytes_write(
   //     I2C0,             // I2C外设
   //     slave_address,    // 设备地址
   //     tx_buffer,        // 接收缓冲区
   //     sizeof(tx_buffer) // 读取长度
   // );
-
   printf(" i2c0 test read data \r\n");
-//
-
-uint8_t iic0Send_Data[40]; 
-uint8_t * iic0Receive_Data;
- 
-iic_Init(open_iic0, iic0Send_Data, &iic0Receive_Data, 0xA0); 
-
-  i2c0_master(I2C0, slave_address, reg_address, rx_buffer,sizeof(rx_buffer)); // 读取长度 sizeof(rx_buffer)
-
-  for (int i = 0; i < sizeof(rx_buffer); i++)
-  {
-    printf("the rx data :0x%02X \r\n", rx_buffer[i]);
-  }
-
   // i2c0_bytes_read(
   //     I2C0,             // I2C外设
   //     slave_address,    // 设备地址
@@ -241,14 +189,10 @@ iic_Init(open_iic0, iic0Send_Data, &iic0Receive_Data, 0xA0);
   //     sizeof(rx_buffer) // 读取长度
   // );
 
-  // printf("the rx data :%02X\r\n", rx_buffer[0]);
-
-  // for (int i = 0; i < sizeof(rx_buffer); i++)
+  // printf("the rx data :%02X\r\n", rx_buffer[0]); // 单字节读取
+  // for (int i = 0; i < sizeof(rx_buffer); i++) // 多字节读取
   // {
-
-  // printf("the rx data :%02X\r\n", rx_buffer[2]);
-
-  // delay_1ms(100);
+  // printf("the i2c0 rec data is 0x%02X \r\n", rx_buffer[i]);
   // }
 
   // ShellCreateTask();
@@ -261,13 +205,14 @@ iic_Init(open_iic0, iic0Send_Data, &iic0Receive_Data, 0xA0);
   // TcpClientCreateTask();
   // vTaskStartScheduler();
 
-  // I2C_Send_Data(0xa0, 0x22);
-
-  printf(" iic test 3 \r\n");
+  // printf(" iic test 3 \r\n");
   while (1)
   {
-    printf(" iic test 4 \r\n");
-
-    delay_ms(10000);
+    // printf(" iic test 4 \r\n");
+    for (int i = 0; i < sizeof(i2c_buffer_receiver); i++)
+    {
+      printf("the i2c0 rec data is 0x%02X \r\n", i2c_buffer_receiver[i]);
+    }
+    delay_ms(3000);
   };
 }

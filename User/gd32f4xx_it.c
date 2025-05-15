@@ -37,7 +37,7 @@ OF SUCH DAMAGE.
 #include "main.h"
 #include <string.h>
 #include <stdio.h>
-
+#include "bsp_i2c.h"
 
 /*!
     \brief      this function handles NMI exception
@@ -232,18 +232,18 @@ void ENET_IRQHandler(void)
     \param[out] none
     \retval     none
 */
-// void I2C0_EV_IRQHandler(void)
-// {
-//     i2c0_event_irq_handler();
-// }
+void I2C0_EV_IRQHandler(void)
+{
+    i2c0_event_irq_handler();
+}
 
-// /*!
-//     \brief      this function handles I2C0 error interrupt request exception
-//     \param[in]  none
-//     \param[out] none
-//     \retval     none
-// */
-// void I2C0_ER_IRQHandler(void)
-// {
-//     i2c0_error_irq_handler();
-// }
+/*!
+    \brief      this function handles I2C0 error interrupt request exception
+    \param[in]  none
+    \param[out] none
+    \retval     none
+*/
+void I2C0_ER_IRQHandler(void)
+{
+    i2c0_error_irq_handler();
+}
